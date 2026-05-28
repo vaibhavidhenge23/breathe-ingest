@@ -1,0 +1,57 @@
+[
+  {
+    "type": "flight",
+    "date": "2024-01-10",
+    "origin": "BOM",
+    "destination": "DEL",
+    "cabin_class": "economy",
+    "travelers": 1,
+    "traveler_name": "Priya Sharma",
+    "trip_id": "TR-2024-001"
+  },
+  {
+    "type": "flight",
+    "date": "2024-01-15",
+    "origin": "DEL",
+    "destination": "LHR",
+    "cabin_class": "business",
+    "travelers": 2,
+    "traveler_name": "Rahul Mehta",
+    "trip_id": "TR-2024-002"
+  },
+  {
+    "type": "hotel",
+    "date": "2024-01-15",
+    "nights": 3,
+    "city": "London",
+    "hotel_name": "Marriott London",
+    "trip_id": "TR-2024-002"
+  },
+  {
+    "type": "flight",
+    "date": "2024-01-20",
+    "origin": "BLR",
+    "destination": "DXB",
+    "cabin_class": "economy",
+    "travelers": 1,
+    "traveler_name": "Anita Reddy",
+    "trip_id": "TR-2024-003"
+  },
+  {
+    "type": "ground",
+    "date": "2024-01-20",
+    "distance_km": 45,
+    "city": "Dubai",
+    "trip_id": "TR-2024-003"
+  },
+  {
+    "type": "flight",
+    "date": "2024-02-05",
+    "origin": "BOM",
+    "destination": "XYZ",
+    "cabin_class": "economy",
+    "travelers": 1,
+    "traveler_name": "Test User",
+    "trip_id": "TR-2024-004"
+  }
+]

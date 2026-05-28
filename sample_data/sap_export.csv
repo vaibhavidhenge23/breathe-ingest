@@ -1,0 +1,13 @@
+WERKS,MATNR,MENGE,MEINS,BUDAT,BKTXT
+PL01,DIESEL-HSD,4500.000,L,20240115,Monthly diesel procurement Mumbai
+PL01,DIESEL-HSD,4800.000,L,20240215,Monthly diesel procurement Mumbai
+PL02,DIESEL-HSD,3200.000,L,20240115,Monthly diesel procurement Delhi
+PL02,PETROL-MS,1200.000,L,20240115,Petrol for fleet vehicles Delhi
+PL03,DIESEL-HSD,2800.000,L,20240115,Monthly diesel procurement Pune
+PL03,DIESEL-HSD,890.500,GAL,20240215,Diesel in gallons - imported equipment
+PL04,DIESEL-HSD,3100.000,L,20240115,Monthly diesel procurement Chennai
+PL01,DIESEL-HSD,22000.000,L,20240315,Quarterly bulk procurement Mumbai
+PL02,DIESEL-HSD,3400.000,L,20240215,Monthly diesel procurement Delhi
+PL01,FURNACE-OIL,1500.000,KG,20240115,Furnace oil for boiler
+PL03,DIESEL-HSD,2950.000,L,20240315,Monthly diesel procurement Pune
+PL99,DIESEL-HSD,500.000,,20240115,Missing unit - should be flagged

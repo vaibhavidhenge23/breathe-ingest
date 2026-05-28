@@ -91,7 +91,13 @@ def parse_travel_file(file_content: bytes):
         if trip_type == 'flight':
             origin = trip.get('origin', '')
             dest = trip.get('destination', '')
-            cabin = trip.get('cabin_class', 'economy').lower()
+            cabin_raw = trip.get('cabin_class', 'economy').upper()
+            if cabin_raw in ('J', 'C', 'BUSINESS', 'BUSINESS CLASS'):
+                cabin = 'business'
+            elif cabin_raw in ('F', 'P', 'FIRST', 'FIRST CLASS'):
+                cabin = 'first'
+            else:
+                cabin = 'economy'
             travelers = int(trip.get('travelers', 1))
 
             km, dist_flag = get_flight_distance(origin, dest)

@@ -80,11 +80,16 @@ def parse_sap_file(file_content: bytes):
 
     for i, row in enumerate(reader, start=2):
         # German headers ko English mein map karo
+        # raw_extras: jo columns COLUMN_MAP mein nahi hain unhe preserve karo
+        # Agar client ne extra column bheja toh wo silently drop nahi hoga
         normalized_row = {}
+        raw_extras = {}
         for key, val in row.items():
             mapped = SAP_COLUMN_MAP.get(key.strip())
             if mapped:
                 normalized_row[mapped] = val.strip() if val else ''
+            else:
+                raw_extras[key.strip()] = val.strip() if val else ''
 
         # Required fields check
         missing = [f for f in ['quantity', 'unit', 'posting_date'] if not normalized_row.get(f)]
@@ -98,9 +103,17 @@ def parse_sap_file(file_content: bytes):
             errors.append((i, f"Unparseable date: {normalized_row['posting_date']}"))
             continue
 
-        # Quantity parse
+        # Quantity parse — German format: 4.500,000 (dot=thousands, comma=decimal)
+        # Simple replace(',', '.') would give 4.500.000 which is invalid
+        # Correct: remove dots first (thousands separator), then replace comma with dot
         try:
-            qty_str = normalized_row['quantity'].replace(',', '.')
+            qty_str = normalized_row['quantity']
+            if ',' in qty_str and '.' in qty_str:
+                # German format: 4.500,000 → remove dots → 4500,000 → replace comma → 4500.000
+                qty_str = qty_str.replace('.', '').replace(',', '.')
+            elif ',' in qty_str:
+                # Could be decimal comma: 4500,5 → 4500.5
+                qty_str = qty_str.replace(',', '.')
             quantity = Decimal(qty_str)
         except Exception:
             errors.append((i, f"Invalid quantity: {normalized_row['quantity']}"))
@@ -110,33 +123,44 @@ def parse_sap_file(file_content: bytes):
         plant_code = normalized_row.get('plant_code', '')
         location = PLANT_LOOKUP.get(plant_code, plant_code)
 
+        # Material se fuel type detect karo — petrol vs diesel
+        material = normalized_row.get('material', '').upper()
+        if 'PETROL' in material or 'MS' in material or 'MOGAS' in material:
+            fuel_factor = FUEL_EMISSION_FACTORS['petrol']
+        else:
+            fuel_factor = FUEL_EMISSION_FACTORS['diesel']
+
         # Liters mein convert karo
         multiplier = UNIT_TO_LITERS.get(unit)
+        flag_parts = []
         if not multiplier:
-            # Unknown unit — record banao but flag karo
             qty_liters = quantity
-            flag = f"Unknown unit '{unit}' — could not normalize to liters"
+            flag_parts.append(f"Unknown unit '{unit}' — could not normalize to liters")
         else:
             qty_liters = quantity * multiplier
-            flag = None
 
-        kgco2e = qty_liters * FUEL_EMISSION_FACTORS['default']
+        if raw_extras:
+            flag_parts.append(f"Extra columns preserved: {list(raw_extras.keys())}")
+
+        kgco2e = qty_liters * fuel_factor
+
+        raw_with_extras = dict(row)
 
         records.append({
-            'raw': dict(row),
+            'raw': raw_with_extras,
             'scope': 1,
             'category': 'fuel',
             'quantity_original': quantity,
             'unit_original': unit,
             'quantity_normalized': qty_liters,
             'unit_normalized': 'L',
-            'emission_factor': FUEL_EMISSION_FACTORS['default'],
+            'emission_factor': fuel_factor,
             'emission_factor_source': 'DEFRA 2023',
             'kgco2e': kgco2e,
             'activity_date': date,
             'location': location,
             'description': normalized_row.get('description', ''),
-            'flag': flag,
+            'flag': ' | '.join(flag_parts) if flag_parts else None,
         })
 
     return records, errors

@@ -1,4 +1,5 @@
-const BASE = '/api'
+//const BASE = '/api'
+const API_BASE_URL = 'https://breathe-ingest-backend.onrender.com/api';
 
 export async function uploadFile(source, file) {
   const form = new FormData()

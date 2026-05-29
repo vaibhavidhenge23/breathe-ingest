@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Upload from './pages/Upload'
 import Dashboard from './pages/Dashboard'
+import AuditLog from './pages/AuditLog'
 
 export default function App() {
   const [page, setPage] = useState('dashboard')
@@ -19,6 +20,7 @@ export default function App() {
           {[
             { key: 'dashboard', label: 'Review' },
             { key: 'upload', label: 'Upload' },
+            { key: 'auditlog', label: 'Audit Log' },
           ].map(item => (
             <button key={item.key} onClick={() => setPage(item.key)} style={{
               padding: '6px 14px', borderRadius: 6, border: 'none',
@@ -36,6 +38,7 @@ export default function App() {
         <Upload onUploaded={() => { setRefreshKey(k => k + 1); setPage('dashboard') }} />
       )}
       {page === 'dashboard' && <Dashboard key={refreshKey} />}
+      {page === 'auditlog' && <AuditLog />}
     </div>
   )
 }

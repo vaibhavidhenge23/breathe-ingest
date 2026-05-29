@@ -7,4 +7,5 @@ urlpatterns = [
     path('records/<int:record_id>/approve/', views.ApproveRecordView.as_view()),
     path('bulk-approve/', views.BulkApproveView.as_view()),
     path('summary/', views.DashboardSummaryView.as_view()),
+    path('audit-log/', views.AuditLogView.as_view()),
 ]

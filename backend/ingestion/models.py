@@ -3,7 +3,10 @@ from django.contrib.auth.models import User
 
 
 class Client(models.Model):
-   
+    """
+    Multi-tenancy ki neev. Har client ka data alag.
+    Ek analyst sirf apna client dekh sakta hai.
+    """
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -12,7 +15,11 @@ class Client(models.Model):
 
 
 class IngestionBatch(models.Model):
-    
+    """
+    Ek baar upload = ek batch.
+    Agar kuch galat nikla toh poori batch revert ho sakti hai.
+    Source track karta hai — SAP tha ya utility ya travel.
+    """
     SOURCE_SAP = 'sap'
     SOURCE_UTILITY = 'utility'
     SOURCE_TRAVEL = 'travel'
@@ -35,7 +42,14 @@ class IngestionBatch(models.Model):
 
 
 class RawRecord(models.Model):
-   
+    """
+    Original data as-is — kuch bhi change nahi.
+
+    Kyun alag rakha EmissionRecord se?
+    Kyunki normalization galat ho sakti hai. Agar analyst baad mein bole
+    "plant PL01 Mumbai tha Delhi nahi" — toh original se recalculate ho sake.
+    Ye Breathe ESG ke audit trail ki zaroorat hai.
+    """
     batch = models.ForeignKey(IngestionBatch, on_delete=models.CASCADE, related_name='raw_records')
     row_number = models.IntegerField()
     raw_data = models.JSONField()  # exact row as dict
@@ -44,7 +58,15 @@ class RawRecord(models.Model):
 
 
 class EmissionRecord(models.Model):
-   
+    """
+    Normalized record — sab kuch common format mein.
+
+    Scope 1: khud fuel jalaya (SAP diesel, petrol)
+    Scope 2: bijli li bahar se (utility)
+    Scope 3: travel, supply chain (Concur/Navan)
+
+    GHG Protocol ka standard — auditors yahi expect karte hain.
+    """
     SCOPE_1 = 1
     SCOPE_2 = 2
     SCOPE_3 = 3
@@ -76,6 +98,8 @@ class EmissionRecord(models.Model):
     scope = models.IntegerField(choices=SCOPE_CHOICES)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
 
+    # Normalized values
+    # Original unit preserve kiya — agar audit mein poochha "liters mein kitna tha"
     quantity_original = models.DecimalField(max_digits=15, decimal_places=4)
     unit_original = models.CharField(max_length=20)  # L, GAL, kWh, km, etc.
     quantity_normalized = models.DecimalField(max_digits=15, decimal_places=4)

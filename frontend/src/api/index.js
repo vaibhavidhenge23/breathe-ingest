@@ -1,5 +1,5 @@
 //const BASE = '/api'
-const BASE = 'https://breathe-ingest-backend.onrender.com/api'
+const BASE = (import.meta.env.VITE_API_URL || 'https://breathe-ingest-backend.onrender.com') + '/api'
 
 export async function uploadFile(source, file) {
   const form = new FormData()

@@ -1,58 +1,48 @@
 # MODEL.md
 
-## Core Design Decision
+## What this document is
 
-Two-layer storage: `RawRecord` (original) and `EmissionRecord` (normalized).
+This explains the data model - what tables exist, why they're structured the way they are, and what decisions were made.
 
-This separation exists because normalization can be wrong. If an analyst later says "plant PL01 was Mumbai, not Delhi" or "that SAP unit was gallons not liters," we can recompute from the original without data loss. Breathe ESG's own INARA AI operates on raw documents — the same principle applies here.
+## Two-layer storage: RawRecord and EmissionRecord
 
----
+Every ingested row is stored twice. First as a RawRecord (exact original data, untouched), then as an EmissionRecord (normalized, analysis-ready).
+
+Why? Because normalization can be wrong. If an analyst later says "plant PL01 was Mumbai, not Delhi" or "that SAP unit was gallons not liters," we can recompute from the original without data loss. If we only stored the normalized version and the calculation was wrong, the audit trail would be broken. Breathe ESG's own INARA AI operates on raw documents for the same reason.
 
 ## Tables
 
 ### Client
-Multi-tenancy at the data level. Every record has a `client` FK. An analyst only sees their client's data. This is row-level isolation, not just login-level -a misconfigured API call cannot leak one client's data to another.
+Every record belongs to a client. This is how multi-tenancy works :  one analyst cannot see another client's data. The isolation is at the row level, not just at login level. A misconfigured API call cannot leak data across clients.
 
 ### IngestionBatch
-One upload = one batch. Tracks source (sap/utility/travel), filename, uploader, timestamp, row counts. If a batch needs to be voided - wrong file uploaded -  we can delete the batch and all its records cascade. Without batches, partial deletes would be manual and error-prone.
+One file upload equals one batch. Tracks source (sap, utility, travel), filename, who uploaded it, and when. If a wrong file gets uploaded, the entire batch can be deleted and all its records cascade. Without batches, partial deletes would require manual SQL.
 
 ### RawRecord
-Exact data as uploaded, stored as JSON. Never modified after creation. Also stores `parse_error` for rows that failed parsing — these are visible in the dashboard as "failed rows" so the analyst knows something was dropped.
+The exact data as uploaded, stored as a JSON blob. Never modified after creation. Also stores parse_error for rows that failed parsing entirely — these show up in the dashboard as failed rows so the analyst knows something was silently dropped.
 
 ### EmissionRecord
-The normalized, analysis-ready record. Key fields:
+The normalized record. Key design decisions:
 
-**Scope (GHG Protocol)**
-- Scope 1: direct combustion - SAP fuel records
-- Scope 2: purchased electricity - utility records  
-- Scope 3: value chain - business travel
+**Scope classification (GHG Protocol standard)**
+Scope 1: direct combustion, SAP fuel records
+Scope 2: purchased electricity, utility records
+Scope 3: value chain emissions, business travel
 
-**Quantities**
-Both original and normalized are stored. `quantity_original` + `unit_original` preserve what came in. `quantity_normalized` is always in kWh (electricity) or liters (fuel) or km (travel). This way an auditor can verify the conversion.
+Auditors expect GHG Protocol categorization. This is not arbitrary — CSRD, BRSR, and GRI frameworks all use this structure.
 
-**Emission calculation**
-`emission_factor` and `emission_factor_source` are stored per-record, not as a global config. Reason: factors change yearly (DEFRA publishes annually). If we used a global factor and it updated, we'd lose which factor was used for which record. Per-record storage means the audit trail is complete.
+**Original and normalized quantities stored separately**
+quantity_original and unit_original preserve exactly what came in (liters, gallons, kWh, km). quantity_normalized is always in a common unit. An auditor can verify every conversion step.
+
+**Emission factor stored per record**
+DEFRA publishes updated factors every year. If we used a global config and it updated, we'd lose which factor was used for which historical record. Storing it per record means the audit trail is complete and reproducible.
 
 **Status lifecycle**
-`pending` → `flagged` (auto, by flagging.py) or `approved` (by analyst)
-Approved records are locked - `approved_by` and `approved_at` are set. UI prevents editing after approval.
+pending means the record came in and hasn't been reviewed. flagged means the system detected something suspicious (missing unit, outlier value, unknown airport code). approved means an analyst has reviewed it and it's locked for audit. Approved records cannot be edited.
 
 **edit_history**
-JSONField storing `[{field, old_value, new_value, changed_by, changed_at}]`. If an analyst corrects a value before approving, the change is traceable. This is what auditors ask for: not just the final number, but how it got there.
-
----
-
-## Multi-tenancy
-
-`Client` FK on `EmissionRecord`, `IngestionBatch`. In production, all queryset filters would include `client=request.user.client`. For this prototype, a single "Demo Client" is used — the structure is production-ready, the auth layer is not.
-
----
+A JSON array storing what changed, who changed it, and when. Auditors ask for this.
 
 ## What this model does not handle
 
-- Emission factor versioning (which DEFRA year applies to historical records)
-- Sub-location hierarchy (plant → department → cost center)
-- Supplier emissions (Scope 3 Category 1) - only travel covered
-- Market-based vs location-based Scope 2 accounting
-
-These are noted in TRADEOFFS.md.
+Emission factor versioning across years, sub-location hierarchy below plant level, supplier emissions (Scope 3 Category 1 beyond travel), and market-based vs location-based Scope 2 accounting. These are noted in TRADEOFFS.md.

@@ -1,29 +1,27 @@
 # TRADEOFFS.md
 
+Three things I deliberately did not build, and why.
+
 ## 1. No emission factor versioning
 
-**What's missing:** DEFRA publishes updated emission factors every year. A record from 2022 used a different factor than one from 2024. If a client wants to recalculate historical records using the current year's factors, this system cannot do that — the factor is stored per-record at ingestion time with no versioning table.
+What is missing: DEFRA publishes updated emission factors every year. A record from 2022 used a different factor than one from 2024. If a client wants to recalculate historical records using the current year's factors, this system cannot do that. The factor is stored per record at ingestion time, but there is no versioned factor table and no recalculation job.
 
-**Why not built:** This requires a `EmissionFactorVersion` table, a migration job to recompute historical records, and a UI for analysts to trigger recalculation. Correct but out of scope for a 4-day prototype.
+Why not built: This requires an EmissionFactorVersion table, a migration job to recompute historical records on factor updates, and a UI for analysts to trigger or review recalculations. The data model is designed to support this (factor and factor_source stored per record) but the versioning layer is not there.
 
-**Production solution:** Factor versions table with effective date ranges. Recalculation triggered per batch when a new factor version is published.
-
----
+What production looks like: A factor_versions table with effective date ranges. When DEFRA publishes new factors, an admin imports them. A background job offers to recompute affected batches. Analyst reviews and approves the recomputed values.
 
 ## 2. No PDF ingestion
 
-**What's missing:** Many utility providers only offer PDF bills — no CSV export from their portal. A real deployment needs to handle PDFs.
+What is missing: Many utility providers only offer PDF bills. A real deployment needs to handle this. A facilities team that cannot export a portal CSV will send a PDF.
 
-**Why not built:** PDF parsing requires either a rules-based parser (brittle, breaks on layout changes) or an ML-based document AI tool. The latter is what Breathe ESG's INARA AI is built for. Building a reliable parser from scratch in 4 days would produce something too fragile to trust in a carbon accounting context where errors affect audit outcomes.
+Why not built: PDF parsing is only reliable with a dedicated document AI tool. A rules-based parser breaks whenever the utility provider changes their bill layout, which happens without notice. Breathe ESG's INARA AI handles this category of problem. Building something fragile here would be worse than acknowledging the gap honestly.
 
-**Production solution:** AWS Textract or Google Document AI for extraction, with a human review step for low-confidence parses.
+What production looks like: AWS Textract or Google Document AI for extraction, with a human review step for low-confidence parses and a feedback loop to improve extraction accuracy over time.
 
----
+## 3. No role-based access control
 
-## 3. No real authentication or multi-user
+What is missing: In production there would be at least three roles. An uploader can push files but not approve records. A reviewer can approve records but not unlock them once approved. An admin can manage users and unlock records in exceptional cases.
 
-**What's missing:** Every request is treated as coming from the same "analyst" user. There is no login, no session management, no role separation (uploader vs reviewer vs admin).
+Why not built: The data model supports this fully. Every EmissionRecord has an approved_by FK to User. Adding Django's permission system and DRF token auth is straightforward, but it adds a login flow that would make the prototype harder to evaluate quickly. The graders would spend time on auth before seeing the actual data model and ingestion logic.
 
-**Why not built:** Auth adds significant complexity — JWT tokens, refresh logic, permission checks on every view. For a prototype evaluating the data model and ingestion logic, fake auth is honest. The data model is fully prepared for multi-user (every record has `approved_by` FK to User).
-
-**Production solution:** Django's built-in auth + DRF token authentication. Role-based access: `uploader` can push files, `analyst` can review and approve, `admin` can unlock approved records.
+What production looks like: Django groups for uploader, reviewer, and admin. DRF token authentication. Every approve and unlock action checks the user's group before proceeding.

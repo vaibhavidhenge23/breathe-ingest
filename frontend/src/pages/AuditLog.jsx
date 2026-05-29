@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 
 export default function AuditLog() {
-const [logs, setLogs] = useState([])
-const [loading, setLoading] = useState(true)
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
 
-useEffect(() => {
-    fetch('/api/analyst/audit-log/')
-    .then(r => r.json())
-    .then(data => { setLogs(data); setLoading(false) })
-    .catch(() => setLoading(false))
+  useEffect(() => {
+    fetch((import.meta.env.VITE_API_URL || 'https://breathe-ingest-backend.onrender.com') + '/api/analyst/audit-log/')
+      .then(r => r.json())
+      .then(data => { setLogs(data); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
   const ACTION_STYLE = {
